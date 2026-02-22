@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RetroWindow } from "./RetroWindow";
+import { DraggableWindow } from "./DraggableWindow";
 import { FireAnimation } from "./FireAnimation";
 import { MOCK_STEPS } from "@/app/lib/mock";
 import type { StepLog, AgentProgress } from "@/app/lib/types";
@@ -24,7 +24,7 @@ export function ProgressView({ live, onMockComplete }: ProgressViewProps) {
 
   /* ── Demo / mock mode ── */
   useEffect(() => {
-    if (live) return; // real agent drives state
+    if (live) return;
 
     let idx = 0;
 
@@ -38,7 +38,6 @@ export function ProgressView({ live, onMockComplete }: ProgressViewProps) {
       const step: StepLog = { ...raw, status: "active" };
 
       setVisibleSteps((prev) => {
-        // Mark previous as complete
         const updated = prev.map((s) => ({ ...s, status: "complete" as const }));
         return [...updated, step];
       });
@@ -72,30 +71,33 @@ export function ProgressView({ live, onMockComplete }: ProgressViewProps) {
   const isComplete = percent >= 100;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "32px 16px",
-      }}
+    <DraggableWindow
+      title="MISSION.LOG"
+      variant="dark"
+      defaultWidth={600}
+      headerRight={
+        <span
+          style={{
+            color: "var(--color-ember-amber)",
+            fontSize: "10px",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+          }}
+        >
+          {percent}%
+        </span>
+      }
     >
-      {/* Header */}
+      {/* Sub-header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: "12px",
-          marginBottom: "24px",
+          padding: "16px 22px 0",
         }}
       >
-        <FireAnimation
-          width={40}
-          height={40}
-          className="animate-flicker"
-        />
+        <FireAnimation width={40} height={40} className="animate-flicker" />
         <div>
           <h2
             style={{
@@ -121,121 +123,92 @@ export function ProgressView({ live, onMockComplete }: ProgressViewProps) {
         </div>
       </div>
 
-      {/* Terminal Window */}
-      <RetroWindow
-        title="MISSION.LOG"
-        variant="dark"
-        style={{ width: "100%", maxWidth: "600px" }}
-        headerRight={
-          <span
-            style={{
-              color: "var(--color-ember-amber)",
-              fontSize: "10px",
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-            }}
+      {/* Terminal output */}
+      <div className="terminal-body" ref={terminalRef} style={{ marginTop: "12px" }}>
+        {visibleSteps.length === 0 && (
+          <div className="term-line term-line--dim cursor-blink">
+            Initializing...
+          </div>
+        )}
+
+        {visibleSteps.map((step, i) => {
+          const isActive = step.status === "active";
+          const lineClass = isActive
+            ? "term-line term-line--prompt animate-type-in"
+            : "term-line";
+
+          return (
+            <div key={step.id} style={{ animationDelay: `${i * 0.02}s` }}>
+              <div className={lineClass}>{step.message}</div>
+              {step.sub && (
+                <div
+                  className="term-line term-line--sub animate-type-in"
+                  style={{ animationDelay: `${i * 0.02 + 0.08}s` }}
+                >
+                  {step.sub}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {!isComplete && visibleSteps.length > 0 && (
+          <div
+            className="term-line term-line--dim cursor-blink"
+            style={{ marginTop: "4px" }}
+          />
+        )}
+
+        {isComplete && (
+          <div
+            className="term-line term-line--ok animate-type-in"
+            style={{ marginTop: "8px" }}
           >
-            {percent}%
-          </span>
-        }
+            ✓ Report ready.
+          </div>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div
+        style={{
+          padding: "14px 22px",
+          borderTop: "1px solid var(--color-ember-ash)",
+          background: "var(--color-ember-surface)",
+        }}
       >
-        {/* Terminal output */}
-        <div className="terminal-body" ref={terminalRef}>
-          {visibleSteps.length === 0 && (
-            <div className="term-line term-line--dim cursor-blink">
-              Initializing...
-            </div>
-          )}
-
-          {visibleSteps.map((step, i) => {
-            const isActive = step.status === "active";
-            const lineClass = isActive
-              ? "term-line term-line--prompt animate-type-in"
-              : "term-line";
-
-            return (
-              <div
-                key={step.id}
-                style={{ animationDelay: `${i * 0.02}s` }}
-              >
-                <div className={lineClass}>{step.message}</div>
-                {step.sub && (
-                  <div
-                    className="term-line term-line--sub animate-type-in"
-                    style={{ animationDelay: `${i * 0.02 + 0.08}s` }}
-                  >
-                    {step.sub}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Active cursor if still running */}
-          {!isComplete && visibleSteps.length > 0 && (
-            <div
-              className="term-line term-line--dim cursor-blink"
-              style={{ marginTop: "4px" }}
-            />
-          )}
-
-          {isComplete && (
-            <div
-              className="term-line term-line--ok animate-type-in"
-              style={{ marginTop: "8px" }}
-            >
-              ✓ Report ready.
-            </div>
-          )}
+        <div className="progress-track">
+          <div className="progress-fill" style={{ width: `${percent}%` }} />
         </div>
-
-        {/* Progress bar */}
         <div
           style={{
-            padding: "14px 22px",
-            borderTop: "1px solid var(--color-ember-ash)",
-            background: "var(--color-ember-surface)",
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "8px",
           }}
         >
-          <div className="progress-track">
-            <div
-              className="progress-fill"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-          <div
+          <span
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: "8px",
+              color: "var(--color-ember-dim)",
+              fontSize: "10px",
+              letterSpacing: "0.06em",
             }}
           >
-            <span
-              style={{
-                color: "var(--color-ember-dim)",
-                fontSize: "10px",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {currentStep?.message.replace("> ", "").split("...")[0] ??
-                "Warming up"}
-            </span>
-            <span
-              style={{
-                color: isComplete
-                  ? "var(--color-ember-amber)"
-                  : "var(--color-ember-dim)",
-                fontSize: "10px",
-                letterSpacing: "0.06em",
-                fontWeight: isComplete ? 600 : 400,
-                transition: "color 0.3s",
-              }}
-            >
-              {isComplete ? "Complete" : "Processing..."}
-            </span>
-          </div>
+            {currentStep?.message.replace("> ", "").split("...")[0] ?? "Warming up"}
+          </span>
+          <span
+            style={{
+              color: isComplete ? "var(--color-ember-amber)" : "var(--color-ember-dim)",
+              fontSize: "10px",
+              letterSpacing: "0.06em",
+              fontWeight: isComplete ? 600 : 400,
+              transition: "color 0.3s",
+            }}
+          >
+            {isComplete ? "Complete" : "Processing..."}
+          </span>
         </div>
-      </RetroWindow>
-    </div>
+      </div>
+    </DraggableWindow>
   );
 }

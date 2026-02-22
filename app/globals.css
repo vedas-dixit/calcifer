@@ -429,3 +429,43 @@ body {
   border: none;
   border-top: 1px solid var(--color-ember-ash);
 }
+
+
+/* ─────────────────────────────────────────
+   DRAGGABLE WINDOW
+───────────────────────────────────────── */
+
+/* Traffic-light action buttons — plain circles, same look as the static spans */
+.tl-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: filter 0.12s;
+}
+
+.tl-btn:hover { filter: brightness(0.78); }
+
+/* Draggable window — content is capped + scrollable.
+   44px accounts for the title bar height so the window never exceeds 90vh. */
+.dw-content {
+  max-height: calc(90vh - 44px);
+  overflow-y: auto;
+}
+
+/* Mobile variant: covers the full viewport */
+.dw-mobile-window {
+  position: fixed;
+  inset: 0;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+}
