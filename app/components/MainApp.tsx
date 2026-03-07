@@ -75,7 +75,7 @@ export function MainApp({ onIgnite }: MainAppProps) {
             gap: "4px",
           }}
         >
-          <FireAnimation width={64} height={64} className="animate-flicker" />
+          <FireAnimation width={88} height={88} className="animate-flicker" showEyes />
 
           <h1
             className="fire-glow animate-glow"

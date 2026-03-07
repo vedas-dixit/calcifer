@@ -90,6 +90,7 @@ body {
   to { transform: rotate(360deg); }
 }
 
+
 /* ── Animation helpers ── */
 .animate-flicker  { animation: flicker    4s  ease-in-out infinite; }
 .animate-glow     { animation: glow-pulse 2.5s ease-in-out infinite; }
@@ -542,6 +543,63 @@ body {
 .settings-dropdown-icon {
   font-size: 13px;
   flex-shrink: 0;
+}
+
+
+/* ─────────────────────────────────────────
+   CALCIFER EYES
+───────────────────────────────────────── */
+@keyframes calcifer-blink {
+  0%, 88%, 100% { transform: scaleY(1); }
+  92%           { transform: scaleY(0.07); }
+  96%           { transform: scaleY(1); }
+}
+
+@keyframes calcifer-blink-r {
+  0%, 82%, 100% { transform: scaleY(1); }
+  86%           { transform: scaleY(0.07); }
+  90%           { transform: scaleY(1); }
+}
+
+@keyframes calcifer-pupil-wander {
+  0%, 100% { transform: translate(0,    0); }
+  20%      { transform: translate(18%,  -14%); }
+  45%      { transform: translate(-14%, 8%); }
+  65%      { transform: translate(10%,  -18%); }
+  80%      { transform: translate(-18%, 4%); }
+}
+
+.calcifer-eyes {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.calcifer-eye {
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1.5px solid #2b2b2b;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.55);
+  transform-origin: center center;
+  animation: calcifer-blink 5s ease-in-out infinite;
+}
+
+.calcifer-eye--right {
+  animation: calcifer-blink-r 5.3s ease-in-out infinite;
+}
+
+.calcifer-pupil {
+  background: #111;
+  border-radius: 50%;
+  position: absolute;
+  animation: calcifer-pupil-wander 4s ease-in-out infinite;
 }
 
 
