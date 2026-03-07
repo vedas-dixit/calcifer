@@ -7,6 +7,7 @@ import { ApiKeyModal } from "@/app/components/ApiKeyModal";
 import { MainApp } from "@/app/components/MainApp";
 import { ProgressView } from "@/app/components/ProgressView";
 import { OutputView } from "@/app/components/OutputView";
+import { SettingsFab } from "@/app/components/SettingsFab";
 import type { AppPhase, AnalysisMode, AgentResult } from "@/app/lib/types";
 
 interface AppState {
@@ -86,6 +87,8 @@ export default function Home() {
 
   return (
     <>
+      {state.phase !== "setup" && <SettingsFab />}
+
       {state.phase === "setup" && <ApiKeyModal onKeySet={handleKeySet} />}
 
       {state.phase === "main" && <MainApp onIgnite={handleIgnite} />}

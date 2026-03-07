@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { DraggableWindow } from "./DraggableWindow";
 import { FireAnimation } from "./FireAnimation";
-import { storage } from "@/app/lib/storage";
 import type { AnalysisMode } from "@/app/lib/types";
 
 interface MainAppProps {
@@ -58,20 +57,11 @@ export function MainApp({ onIgnite }: MainAppProps) {
     onIgnite(trimmed, mode, focus.trim());
   }
 
-  function handleChangeKey() {
-    storage.clearApiKey();
-    window.location.reload();
-  }
-
   return (
     <DraggableWindow
       title="MISSION_CONFIG.EXE"
       defaultWidth={560}
-      headerRight={
-        <button className="btn-ghost btn-ghost--sm" onClick={handleChangeKey}>
-          Change key
-        </button>
-      }
+      titleAlign="right"
     >
       <div style={{ padding: "24px" }}>
         {/* Header */}

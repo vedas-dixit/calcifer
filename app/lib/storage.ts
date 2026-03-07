@@ -1,21 +1,35 @@
-const KEY = "EMBERCORE_GEMINI_KEY";
+const GEMINI_KEY = "EMBERCORE_GEMINI_KEY";
+const GITHUB_KEY = "EMBERCORE_GITHUB_KEY";
 
 export const storage = {
   getApiKey(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(KEY);
+    return localStorage.getItem(GEMINI_KEY);
   },
 
   setApiKey(key: string): void {
-    localStorage.setItem(KEY, key);
+    localStorage.setItem(GEMINI_KEY, key);
   },
 
   clearApiKey(): void {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(GEMINI_KEY);
   },
 
   hasApiKey(): boolean {
     if (typeof window === "undefined") return false;
-    return !!localStorage.getItem(KEY);
+    return !!localStorage.getItem(GEMINI_KEY);
+  },
+
+  getGithubKey(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(GITHUB_KEY);
+  },
+
+  setGithubKey(key: string): void {
+    localStorage.setItem(GITHUB_KEY, key);
+  },
+
+  clearGithubKey(): void {
+    localStorage.removeItem(GITHUB_KEY);
   },
 };

@@ -22,6 +22,10 @@ export interface DraggableWindowProps {
   onClose?: () => void;
   className?: string;
   style?: CSSProperties;
+  /** Where to render the title text. Default "center". "right" puts it in the right slot. */
+  titleAlign?: "center" | "right";
+  /** Base z-index for this window. Default 40. */
+  zIndex?: number;
 }
 
 export function DraggableWindow({
@@ -33,6 +37,8 @@ export function DraggableWindow({
   onClose,
   className = "",
   style,
+  titleAlign = "center",
+  zIndex = 40,
 }: DraggableWindowProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [minimized, setMinimized] = useState(false);
@@ -185,8 +191,10 @@ export function DraggableWindow({
             />
             <button className="tl-btn tl-green" aria-label="Fullscreen" />
           </div>
-          <span className="retro-title-text">{title}</span>
-          <div style={{ minWidth: 56, display: "flex", justifyContent: "flex-end" }}>
+          {titleAlign === "center" && <span className="retro-title-text">{title}</span>}
+          {titleAlign !== "center" && <span />}
+          <div style={{ minWidth: 56, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            {titleAlign === "right" && <span className="retro-title-text">{title}</span>}
             {headerRight ?? null}
           </div>
         </div>
@@ -206,7 +214,7 @@ export function DraggableWindow({
         width: "100vw",
         height: "100vh",
         borderRadius: 0,
-        zIndex: 40,
+        zIndex,
         display: "flex",
         flexDirection: "column",
       }
@@ -215,7 +223,7 @@ export function DraggableWindow({
         left: pos.x,
         top: pos.y,
         width: defaultWidth,
-        zIndex: 40,
+        zIndex,
         ...style,
       };
 
@@ -247,8 +255,10 @@ export function DraggableWindow({
             aria-label={maximized ? "Restore" : "Maximize"}
           />
         </div>
-        <span className="retro-title-text">{title}</span>
-        <div style={{ minWidth: 56, display: "flex", justifyContent: "flex-end" }}>
+        {titleAlign === "center" && <span className="retro-title-text">{title}</span>}
+        {titleAlign !== "center" && <span />}
+        <div style={{ minWidth: 56, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          {titleAlign === "right" && <span className="retro-title-text">{title}</span>}
           {headerRight ?? null}
         </div>
       </div>
