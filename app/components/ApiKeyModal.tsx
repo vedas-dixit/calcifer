@@ -89,7 +89,7 @@ export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
       >
         {/* Fire */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-          <FireAnimation width={76} height={76} className="animate-flicker" />
+          <FireAnimation width={76} height={76} className="animate-flicker" showEyes />
         </div>
 
         {/* Heading */}
