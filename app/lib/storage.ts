@@ -1,5 +1,8 @@
 const GEMINI_KEY = "EMBERCORE_GEMINI_KEY";
 const GITHUB_KEY = "EMBERCORE_GITHUB_KEY";
+const MODEL_KEY = "EMBERCORE_MODEL";
+
+export const DEFAULT_MODEL = "gemini-2.5-pro";
 
 export const storage = {
   getApiKey(): string | null {
@@ -31,5 +34,14 @@ export const storage = {
 
   clearGithubKey(): void {
     localStorage.removeItem(GITHUB_KEY);
+  },
+
+  getModel(): string {
+    if (typeof window === "undefined") return DEFAULT_MODEL;
+    return localStorage.getItem(MODEL_KEY) ?? DEFAULT_MODEL;
+  },
+
+  setModel(model: string): void {
+    localStorage.setItem(MODEL_KEY, model);
   },
 };

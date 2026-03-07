@@ -8,6 +8,7 @@ import { MainApp } from "@/app/components/MainApp";
 import { ProgressView } from "@/app/components/ProgressView";
 import { OutputView } from "@/app/components/OutputView";
 import { SettingsFab } from "@/app/components/SettingsFab";
+import { Toaster } from "@/app/components/Toaster";
 import type { AppPhase, AnalysisMode, AgentResult, AgentProgress } from "@/app/lib/types";
 
 interface AppState {
@@ -93,6 +94,7 @@ export default function Home() {
 
   return (
     <>
+      <Toaster />
       {state.phase !== "setup" && <SettingsFab />}
 
       {state.phase === "setup" && <ApiKeyModal onKeySet={handleKeySet} />}

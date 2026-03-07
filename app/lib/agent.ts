@@ -1,6 +1,13 @@
-import { parseGitHubUrl, buildRepoContext } from "./github";
-import { buildPrompt } from "./prompts";
-import { generateAnalysis } from "./gemini";
+import {
+  parseGitHubUrl,
+  fetchRepoAndTree,
+  fetchRawContent,
+  fetchGoodFirstIssues,
+  scoreFile,
+} from "./github";
+import { extractSymbols, formatSymbolSummary } from "./symbols";
+import { buildSystemPrompt, buildInitialMessage } from "./prompts";
+import { runAgentLoop } from "./gemini";
 import { storage } from "./storage";
 import type { AnalysisMode, AgentResult, AgentProgress, StepLog } from "./types";
 
@@ -16,7 +23,7 @@ export interface AgentOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Step progress helper
+// Progress tracker
 // ---------------------------------------------------------------------------
 
 class ProgressTracker {
@@ -29,7 +36,6 @@ class ProgressTracker {
   }
 
   push(id: string, message: string, sub: string | undefined, pct: number) {
-    // Mark previous step complete
     if (this.steps.length > 0) {
       const last = this.steps[this.steps.length - 1];
       this.steps[this.steps.length - 1] = { ...last, status: "complete" };
@@ -83,60 +89,110 @@ export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
   const tracker = new ProgressTracker(onProgress);
 
   try {
-    // Step 1 — Boot
-    tracker.push("boot", "> EMBERCORE.EXE — warming up", "→ Checking mission parameters...", 5);
+    // ── Boot ──
+    tracker.push("boot", "> EMBERCORE.EXE — warming up", "→ Locking onto target...", 5);
 
-    // Step 2 — Parse URL
+    // ── Parse URL ──
     tracker.push("parse", "> Parsing repository coordinates...", `→ Target: ${url}`, 10);
     const { owner, repo } = parseGitHubUrl(url);
 
-    // Steps 3-5 (+ optionally step 6) — Build repo context
-    // buildRepoContext calls onProgress for each sub-step
-    const percentMap: Record<string, number> = {
-      "> Fetching repository metadata...": 20,
-      "> Scanning codebase...": 35,
-      "> Reading key files...": 55,
-      "> Checking open issues...": 62,
-    };
-
-    const context = await buildRepoContext(
+    // ── Fetch tree + metadata (2 GitHub API calls, no LLM) ──
+    const { metadata, branch, blobs, treeStr } = await fetchRepoAndTree(
       owner,
       repo,
-      mode,
-      focus,
       githubKey,
       (message, sub) => {
-        const id = message.replace(/[^a-z]/gi, "").slice(0, 10).toLowerCase();
-        const pct = percentMap[message] ?? tracker["percent"];
-        tracker.push(id, message, sub, pct);
+        const pctMap: Record<string, number> = {
+          "> Fetching repository metadata...": 18,
+          "> Scanning codebase...": 28,
+        };
+        const id = message.replace(/[^a-z]/gi, "").slice(0, 12).toLowerCase();
+        tracker.push(id, message, sub, pctMap[message] ?? 22);
       }
     );
 
-    // Step N — AI analysis
+    // ── Symbol extraction — free, no LLM ──
+    // Score all blobs, take top 15, fetch content, extract symbols
     tracker.push(
-      "ai",
-      "> Consulting the AI oracle...",
-      "→ Asking Gemini to illuminate this codebase...",
-      68
+      "symbols",
+      "> Extracting code structure...",
+      `→ Building repo map from ${blobs.filter((b) => !b.path.includes("node_modules")).length} files...`,
+      38
     );
 
-    const prompt = buildPrompt(mode, context, focus);
-    const output = await generateAnalysis(prompt, geminiKey);
+    const scored = blobs
+      .map((e) => ({ path: e.path, score: scoreFile(e.path, mode, focus) }))
+      .filter((e) => e.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15);
 
-    // Final step — Done
+    const symbolLines: string[] = [];
+    for (const { path } of scored) {
+      const content = await fetchRawContent(owner, repo, branch, path);
+      if (content) {
+        const symbols = extractSymbols(path, content);
+        const summary = formatSymbolSummary(path, symbols);
+        symbolLines.push(summary ? `${path}\n${summary}` : path);
+      }
+    }
+
+    // ── Fetch good first issues for contribution mode ──
+    let goodFirstIssues: Awaited<ReturnType<typeof fetchGoodFirstIssues>> = [];
+    if (mode === "contribution") {
+      tracker.push(
+        "issues",
+        "> Checking open issues...",
+        "→ Looking for beginner-friendly tasks...",
+        45
+      );
+      goodFirstIssues = await fetchGoodFirstIssues(owner, repo, githubKey);
+    }
+
+    // ── Agent loop — Gemini with function calling ──
     tracker.push(
-      "done",
-      "> Mission complete.",
-      `→ Report ready for ${owner}/${repo}`,
-      100
+      "agent",
+      "> EMBERCORE is on the move...",
+      "→ Studying the codebase map...",
+      50
     );
+
+    // Each round of file fetching becomes a new visible step
+    // Percent: 50 → 85 spread across up to 7 rounds (~5% per round)
+    const output = await runAgentLoop({
+      systemPrompt: buildSystemPrompt(mode, focus),
+      model: storage.getModel(),
+      initialMessage: buildInitialMessage(
+        mode,
+        metadata,
+        treeStr,
+        symbolLines.join("\n\n"),
+        focus,
+        goodFirstIssues
+      ),
+      apiKey: geminiKey,
+
+      fetchFiles: async (paths) => {
+        const results: Array<{ path: string; content: string }> = [];
+        for (const path of paths) {
+          const content = await fetchRawContent(owner, repo, branch, path);
+          if (content !== null) results.push({ path, content });
+        }
+        return results;
+      },
+
+      onToolCall: (reason, paths, round) => {
+        const pct = Math.min(50 + round * 6, 85);
+        const fileList =
+          paths.slice(0, 3).join(", ") + (paths.length > 3 ? ` +${paths.length - 3} more` : "");
+        tracker.push(`round-${round}`, `> ${reason}`, `→ Reading: ${fileList}`, pct);
+      },
+    });
+
+    // ── Done ──
+    tracker.push("done", "> Mission complete.", `→ Report ready for ${owner}/${repo}`, 100);
     tracker.complete();
 
-    return {
-      metadata: context.metadata,
-      output,
-      mode,
-    };
+    return { metadata, output, mode };
   } catch (err) {
     tracker.error();
     throw err;

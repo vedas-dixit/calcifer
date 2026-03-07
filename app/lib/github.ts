@@ -144,7 +144,7 @@ interface RawRepo {
   default_branch: string;
 }
 
-interface TreeItem {
+export interface TreeItem {
   path: string;
   type: "blob" | "tree";
   size?: number;
@@ -165,7 +165,7 @@ function shouldSkip(path: string): boolean {
 // File scoring — determines which files are most valuable to read
 // ---------------------------------------------------------------------------
 
-function scoreFile(path: string, mode: AnalysisMode, focus: string): number {
+export function scoreFile(path: string, mode: AnalysisMode, focus: string): number {
   if (shouldSkip(path)) return -1;
 
   const lower = path.toLowerCase();
@@ -241,7 +241,7 @@ function scoreFile(path: string, mode: AnalysisMode, focus: string): number {
 // File content via raw CDN — no GitHub API rate limits, no auth needed
 // ---------------------------------------------------------------------------
 
-async function fetchRawContent(
+export async function fetchRawContent(
   owner: string,
   repo: string,
   branch: string,
@@ -291,7 +291,59 @@ export async function fetchGoodFirstIssues(
 }
 
 // ---------------------------------------------------------------------------
-// Main context builder
+// Lightweight bootstrap — metadata + tree only, no file reads
+// Used by the agentic runner so the agent controls what files to fetch
+// ---------------------------------------------------------------------------
+
+export interface RepoAndTree {
+  metadata: RepoMetadata;
+  branch: string;
+  blobs: TreeItem[];
+  treeStr: string;
+}
+
+export async function fetchRepoAndTree(
+  owner: string,
+  repo: string,
+  token: string | undefined,
+  onProgress: (step: string, sub?: string) => void
+): Promise<RepoAndTree> {
+  onProgress("> Fetching repository metadata...", `→ Checking ${owner}/${repo}`);
+  const raw = await ghJson<RawRepo>(`/repos/${owner}/${repo}`, token);
+
+  const metadata: RepoMetadata = {
+    owner,
+    repo,
+    description: raw.description,
+    language: raw.language,
+    stars: raw.stargazers_count,
+    openIssues: raw.open_issues_count,
+    url: raw.html_url,
+  };
+
+  const branch = raw.default_branch;
+
+  onProgress("> Scanning codebase...", "→ Mapping the file system...");
+  const treeData = await ghJson<{ tree: TreeItem[]; truncated: boolean }>(
+    `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+    token
+  );
+
+  const blobs = treeData.tree.filter((e) => e.type === "blob");
+
+  const visiblePaths = blobs
+    .filter((e) => !shouldSkip(e.path))
+    .map((e) => e.path)
+    .slice(0, 500);
+  const treeStr =
+    visiblePaths.join("\n") +
+    (treeData.truncated || blobs.length > 500 ? "\n... [and more files]" : "");
+
+  return { metadata, branch, blobs, treeStr };
+}
+
+// ---------------------------------------------------------------------------
+// Main context builder (kept for reference / fallback)
 // ---------------------------------------------------------------------------
 
 export async function buildRepoContext(

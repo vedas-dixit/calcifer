@@ -4,43 +4,78 @@ import { useState } from "react";
 import { DraggableWindow } from "./DraggableWindow";
 import { FireAnimation } from "./FireAnimation";
 import { storage } from "@/app/lib/storage";
+import { toast } from "@/app/lib/toast";
 
 interface ApiKeyModalProps {
   onKeySet: () => void;
 }
 
+// Quick validation — try listing Gemini models with the provided key
+async function validateGeminiKey(key: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=1`
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
-  const [key, setKey] = useState("");
-  const [phase, setPhase] = useState<"idle" | "saving" | "error">("idle");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [githubKey, setGithubKey] = useState("");
+  const [phase, setPhase] = useState<"idle" | "validating" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  function validate(value: string): string | null {
+  function formatCheck(value: string): string | null {
     const trimmed = value.trim();
-    if (!trimmed) return "This hearth is empty. Paste your API key.";
+    if (!trimmed) return "This hearth is empty. Paste your Gemini API key.";
     if (!trimmed.startsWith("AIza"))
       return "Doesn't look like a Gemini key — should start with 'AIza'.";
     return null;
   }
 
-  function handleSave() {
-    const err = validate(key);
-    if (err) {
-      setErrorMsg(err);
+  async function handleSave() {
+    const formatErr = formatCheck(geminiKey);
+    if (formatErr) {
+      setErrorMsg(formatErr);
       setPhase("error");
       return;
     }
-    setPhase("saving");
-    storage.setApiKey(key.trim());
-    setTimeout(onKeySet, 350);
+
+    setPhase("validating");
+
+    const valid = await validateGeminiKey(geminiKey.trim());
+
+    if (!valid) {
+      setPhase("error");
+      setErrorMsg("Key rejected by Gemini API. Double-check it and try again.");
+      toast.error("Your API key isn't igniting. Check it and try again.");
+      return;
+    }
+
+    // Save both keys
+    storage.setApiKey(geminiKey.trim());
+    if (githubKey.trim()) {
+      storage.setGithubKey(githubKey.trim());
+    }
+
+    // Nudge user toward model selection
+    toast.fire("Fuel loaded. Pick your model in ⚙ Settings → Choose Model");
+
+    setTimeout(onKeySet, 300);
   }
 
-  function handleChange(value: string) {
-    setKey(value);
+  function handleGeminiChange(value: string) {
+    setGeminiKey(value);
     if (phase === "error") {
       setPhase("idle");
       setErrorMsg("");
     }
   }
+
+  const isValidating = phase === "validating";
 
   return (
     <DraggableWindow title="MISSION_CONFIG.EXE" variant="fire" defaultWidth={460}>
@@ -86,8 +121,8 @@ export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
           </p>
         </div>
 
-        {/* Input */}
-        <div style={{ marginBottom: "14px" }}>
+        {/* Gemini key */}
+        <div style={{ marginBottom: "12px" }}>
           <label className="field-label" htmlFor="api-key-input">
             Gemini API Key
           </label>
@@ -96,26 +131,56 @@ export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
             type="password"
             className="retro-input"
             placeholder="AIzaSy..."
-            value={key}
-            onChange={(e) => handleChange(e.target.value)}
+            value={geminiKey}
+            onChange={(e) => handleGeminiChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
             autoFocus
             autoComplete="off"
+            disabled={isValidating}
           />
           {phase === "error" && <p className="field-error">{errorMsg}</p>}
+        </div>
+
+        {/* GitHub key — optional */}
+        <div style={{ marginBottom: "18px" }}>
+          <label className="field-label" htmlFor="github-key-input">
+            GitHub Token{" "}
+            <span
+              style={{
+                color: "var(--color-ember-dim)",
+                fontSize: "10px",
+                letterSpacing: "0.04em",
+                textTransform: "none",
+                fontWeight: 400,
+              }}
+            >
+              — optional, unlocks private repos &amp; higher rate limits
+            </span>
+          </label>
+          <input
+            id="github-key-input"
+            type="password"
+            className="retro-input"
+            placeholder="ghp_..."
+            value={githubKey}
+            onChange={(e) => setGithubKey(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            autoComplete="off"
+            disabled={isValidating}
+          />
         </div>
 
         {/* CTA */}
         <button
           className="btn-ignite"
           onClick={handleSave}
-          disabled={phase === "saving"}
+          disabled={isValidating}
           style={{ width: "100%" }}
         >
-          {phase === "saving" ? "Igniting..." : "IGNITE  →"}
+          {isValidating ? "Igniting..." : "IGNITE  →"}
         </button>
 
-        {/* Footer notes */}
+        {/* Footer */}
         <p
           style={{
             textAlign: "center",
@@ -125,9 +190,9 @@ export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
             lineHeight: "1.6",
           }}
         >
-          Your key stays in your browser. Even I can&apos;t see it.
+          Your keys stay in your browser. Even I can&apos;t see them.
           <br />
-          No account?{" "}
+          No Gemini key?{" "}
           <a
             href="https://aistudio.google.com/app/apikey"
             target="_blank"

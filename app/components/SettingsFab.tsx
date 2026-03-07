@@ -2,13 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { KeyWindow } from "./KeyWindow";
+import { ModelPickerWindow } from "./ModelPickerWindow";
 import { storage } from "@/app/lib/storage";
 
 export function SettingsFab() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [geminiOpen, setGeminiOpen] = useState(false);
   const [githubOpen, setGithubOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Read key state once on mount (client-only)
+  useEffect(() => {
+    setHasGeminiKey(storage.hasApiKey());
+  }, []);
 
   /* Close dropdown when clicking outside */
   useEffect(() => {
@@ -29,6 +37,12 @@ export function SettingsFab() {
   function openGithub() {
     setDropdownOpen(false);
     setGithubOpen(true);
+  }
+
+  function openModel() {
+    if (!hasGeminiKey) return;
+    setDropdownOpen(false);
+    setModelOpen(true);
   }
 
   return (
@@ -88,6 +102,14 @@ export function SettingsFab() {
           >
             <DropdownItem icon="🔑" label="Set Gemini Key" onClick={openGemini} />
             <DropdownItem icon="🐙" label="Set GitHub Key" onClick={openGithub} divider />
+            <DropdownItem
+              icon="⚡"
+              label="Choose Model"
+              onClick={openModel}
+              divider
+              disabled={!hasGeminiKey}
+              disabledHint="Add a Gemini key first"
+            />
           </div>
         )}
       </div>
@@ -109,6 +131,13 @@ export function SettingsFab() {
             href: "https://aistudio.google.com/app/apikey",
             text: "Get one free at Google AI Studio →",
           }}
+        />
+      )}
+
+      {modelOpen && (
+        <ModelPickerWindow
+          apiKey={storage.getApiKey()!}
+          onClose={() => setModelOpen(false)}
         />
       )}
 
@@ -140,35 +169,45 @@ function DropdownItem({
   label,
   onClick,
   divider,
+  disabled,
+  disabledHint,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
   divider?: boolean;
+  disabled?: boolean;
+  disabledHint?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      title={disabled && disabledHint ? disabledHint : undefined}
       style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
         width: "100%",
         padding: "10px 14px",
-        background: hovered ? "var(--color-ember-elevated)" : "transparent",
+        background: !disabled && hovered ? "var(--color-ember-elevated)" : "transparent",
         borderTop: divider ? "1px solid var(--color-ember-ash)" : "none",
         borderRight: "none",
         borderBottom: "none",
         borderLeft: "none",
-        color: hovered ? "var(--color-ember-amber)" : "var(--color-ember-text)",
+        color: disabled
+          ? "var(--color-ember-dim)"
+          : hovered
+            ? "var(--color-ember-amber)"
+            : "var(--color-ember-text)",
         fontFamily: "var(--font-mono)",
         fontSize: 12,
         letterSpacing: "0.04em",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         textAlign: "left",
+        opacity: disabled ? 0.5 : 1,
         transition: "background 0.15s, color 0.15s",
       }}
     >

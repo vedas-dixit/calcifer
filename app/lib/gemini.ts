@@ -1,46 +1,164 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType, type Part } from "@google/generative-ai";
+import { DEFAULT_MODEL } from "./storage";
 
-// gemini-2.5-pro: most capable, best for complex analysis
-const MODEL = "gemini-2.5-pro";
+const MAX_ROUNDS = 7;
+const MAX_FILES_TOTAL = 60;
+const MAX_FILE_CHARS = 10_000;
 
-export async function generateAnalysis(
-  prompt: string,
-  apiKey: string
-): Promise<string> {
+// ---------------------------------------------------------------------------
+// Agent loop config
+// ---------------------------------------------------------------------------
+
+export interface AgentLoopConfig {
+  systemPrompt: string;
+  initialMessage: string;
+  apiKey: string;
+  model?: string;
+  fetchFiles: (paths: string[]) => Promise<Array<{ path: string; content: string }>>;
+  // Called each time the agent uses read_files — use this to update UI progress
+  onToolCall: (reason: string, paths: string[], round: number) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Gemini function declarations
+// ---------------------------------------------------------------------------
+
+// Only one tool: read_files. When done, the agent writes the report as plain text.
+// produce_report was removed — Gemini can't serialize multi-thousand-char strings
+// as function call arguments without MALFORMED_FUNCTION_CALL errors.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TOOL_DECLARATIONS: any[] = [
+  {
+    name: "read_files",
+    description:
+      "Fetch the full content of specific files from the repository. " +
+      "Use this to read files you want to examine after seeing the repo map. " +
+      "Call with up to 15 paths per round. The reason you provide is shown in the UI.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        paths: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
+          description: "File paths relative to repo root.",
+        },
+        reason: {
+          type: SchemaType.STRING,
+          description:
+            "One short sentence explaining what you're looking for — shown to the user as a progress update.",
+        },
+      },
+      required: ["paths", "reason"],
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Main agent loop
+// ---------------------------------------------------------------------------
+
+export async function runAgentLoop(config: AgentLoopConfig): Promise<string> {
+  const { systemPrompt, initialMessage, apiKey, fetchFiles, onToolCall } = config;
+  const modelId = config.model ?? DEFAULT_MODEL;
+
   const genAI = new GoogleGenerativeAI(apiKey);
+
   const model = genAI.getGenerativeModel({
-    model: MODEL,
+    model: modelId,
     generationConfig: {
-      temperature: 0.4,     // focused and consistent
+      temperature: 0.3,
       maxOutputTokens: 8192,
     },
+    systemInstruction: systemPrompt,
+    tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
   });
 
-  let result;
-  try {
-    result = await model.generateContent(prompt);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+  const chat = model.startChat();
+  let response = await chat.sendMessage(initialMessage);
+  let totalFilesRead = 0;
 
-    if (msg.includes("API_KEY_INVALID") || msg.includes("401")) {
-      throw new Error("Invalid Gemini API key. Update it in Settings (⚙).");
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const calls = response.response.functionCalls();
+
+    // Model returned plain text (no tool call) — treat as final report
+    if (!calls || calls.length === 0) {
+      const text = response.response.text();
+      if (text.trim()) return text;
+      throw new Error("EMBERCORE went silent — no report produced. Please try again.");
     }
-    if (msg.includes("QUOTA_EXCEEDED") || msg.includes("429")) {
-      throw new Error(
-        "Gemini API quota exceeded. Wait a minute or upgrade your Google AI Studio plan."
-      );
+
+    // Process read_files calls (model may batch multiple in one turn)
+    const responseParts: Part[] = [];
+
+    for (const call of calls) {
+      if (call.name !== "read_files") continue;
+
+      const { paths, reason } = call.args as { paths: string[]; reason: string };
+
+      // Cap per-round and total reads
+      const remaining = MAX_FILES_TOTAL - totalFilesRead;
+      if (remaining <= 0) {
+        responseParts.push({
+          functionResponse: {
+            name: "read_files",
+            response: {
+              result:
+                "[SYSTEM: File limit reached. Stop calling read_files and write your report now as plain text.]",
+            },
+          },
+        });
+        continue;
+      }
+
+      const limited = paths.slice(0, Math.min(15, remaining));
+      onToolCall(reason, limited, round + 1);
+
+      const files = await fetchFiles(limited);
+      totalFilesRead += files.length;
+
+      const fileBlocks = files
+        .map((f) => {
+          const ext = f.path.split(".").pop() ?? "";
+          const content =
+            f.content.length > MAX_FILE_CHARS
+              ? f.content.slice(0, MAX_FILE_CHARS) + "\n\n... [truncated]"
+              : f.content;
+          return `### ${f.path}\n\`\`\`${ext}\n${content}\n\`\`\``;
+        })
+        .join("\n\n");
+
+      let result =
+        files.length > 0
+          ? `Read ${files.length} file(s):\n\n${fileBlocks}`
+          : "None of those paths could be read. Check the file tree and try different paths.";
+
+      // Nudge the agent to wrap up when approaching limits
+      if (totalFilesRead >= MAX_FILES_TOTAL * 0.8) {
+        result += `\n\n[SYSTEM: ${totalFilesRead}/${MAX_FILES_TOTAL} files read. Wrap up soon — write your report as plain text when ready.]`;
+      }
+
+      responseParts.push({
+        functionResponse: { name: "read_files", response: { result } },
+      });
     }
-    if (msg.includes("SAFETY")) {
-      throw new Error(
-        "Gemini blocked the response for safety reasons. Try a different repository or focus area."
-      );
+
+    if (responseParts.length === 0) break;
+
+    // Force report on the final allowed round
+    if (round === MAX_ROUNDS - 2) {
+      responseParts.push({
+        functionResponse: {
+          name: "read_files",
+          response: {
+            result:
+              "[SYSTEM: This is your last round. Do NOT call read_files again. Write your complete report now as plain text markdown.]",
+          },
+        },
+      });
     }
-    throw new Error(`Gemini error: ${msg}`);
+
+    response = await chat.sendMessage(responseParts);
   }
 
-  const text = result.response.text();
-  if (!text || text.trim().length === 0) {
-    throw new Error("Gemini returned an empty response. Please try again.");
-  }
-  return text;
+  throw new Error("EMBERCORE exhausted all rounds without a report. Try a more focused analysis.");
 }
