@@ -9,6 +9,7 @@ import { ProgressView } from "@/app/components/ProgressView";
 import { OutputView } from "@/app/components/OutputView";
 import { SettingsFab } from "@/app/components/SettingsFab";
 import { Toaster } from "@/app/components/Toaster";
+import { FireworksOverlay } from "@/app/components/FireworksOverlay";
 import type { AppPhase, AnalysisMode, AgentResult, AgentProgress } from "@/app/lib/types";
 
 interface AppState {
@@ -102,7 +103,10 @@ export default function Home() {
       {state.phase === "main" && <MainApp onIgnite={handleIgnite} />}
 
       {state.phase === "processing" && (
-        <ProgressView live={state.progress} />
+        <>
+          <FireworksOverlay active />
+          <ProgressView live={state.progress} />
+        </>
       )}
 
       {state.phase === "output" && state.result && (
@@ -137,6 +141,7 @@ export default function Home() {
           </button>
         </div>
       )}
+      
     </>
   );
 }
