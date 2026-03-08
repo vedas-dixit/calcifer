@@ -7,8 +7,8 @@ import { SkillsModal } from "./SkillsModal";
 import { storage } from "@/app/lib/storage";
 import { useSettings } from "@/app/lib/settings-store";
 
-export function SettingsFab() {
-  const { hasGeminiKey, hasSkillProfile, setHasGeminiKey, setHasSkillProfile } = useSettings();
+export function SettingsFab({ showMusicNudge = false }: { showMusicNudge?: boolean }) {
+  const { hasGeminiKey, hasSkillProfile, isMusicOn, setHasGeminiKey, setHasSkillProfile, setIsMusicOn } = useSettings();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [geminiOpen, setGeminiOpen] = useState(false);
   const [githubOpen, setGithubOpen] = useState(false);
@@ -55,6 +55,41 @@ export function SettingsFab() {
         ref={wrapperRef}
         style={{ position: "fixed", top: 16, right: 16, zIndex: 100 }}
       >
+        {/* Music nudge tooltip */}
+        {showMusicNudge && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 10px)",
+              right: 0,
+              background: "var(--color-ember-amber)",
+              color: "#1a0a00",
+              padding: "7px 12px",
+              borderRadius: 5,
+              fontSize: 11,
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.04em",
+              whiteSpace: "nowrap",
+              boxShadow: "0 4px 14px rgba(255,140,0,0.35)",
+              animation: "slide-up 0.3s ease-out",
+              pointerEvents: "none",
+              zIndex: 200,
+            }}
+          >
+            {/* arrow pointing up-right */}
+            <div style={{
+              position: "absolute",
+              top: -5,
+              right: 10,
+              width: 10,
+              height: 10,
+              background: "var(--color-ember-amber)",
+              transform: "rotate(45deg)",
+            }} />
+            ♪ Play BGM — toggle in settings
+          </div>
+        )}
+
         {/* Gear button */}
         <button
           onClick={() => setDropdownOpen((v) => !v)}
@@ -132,6 +167,7 @@ export function SettingsFab() {
               onClick={openSkills}
               divider
             />
+            <MusicToggleItem isOn={isMusicOn} onToggle={() => setIsMusicOn(!isMusicOn)} />
           </div>
         )}
       </div>
@@ -192,6 +228,59 @@ export function SettingsFab() {
         />
       )}
     </>
+  );
+}
+
+/* ── Music toggle item ── */
+function MusicToggleItem({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        width: "100%",
+        padding: "10px 14px",
+        background: hovered ? "var(--color-ember-elevated)" : "transparent",
+        borderTop: "1px solid var(--color-ember-ash)",
+        borderRight: "none",
+        borderBottom: "none",
+        borderLeft: "none",
+        color: hovered ? "var(--color-ember-amber)" : "var(--color-ember-text)",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        letterSpacing: "0.04em",
+        cursor: "pointer",
+        transition: "background 0.15s, color 0.15s",
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 13 }}>♪</span>
+        BGM
+      </span>
+      {/* Play / Pause pill */}
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "2px 8px",
+          borderRadius: 3,
+          background: isOn ? "var(--color-ember-amber)" : "var(--color-ember-ash)",
+          color: isOn ? "#1a0a00" : "var(--color-ember-muted)",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          transition: "background 0.2s, color 0.2s",
+        }}
+      >
+        {isOn ? "▶ ON" : "⏸ OFF"}
+      </span>
+    </button>
   );
 }
 

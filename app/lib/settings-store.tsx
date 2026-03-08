@@ -10,8 +10,10 @@ import { storage } from "./storage";
 interface SettingsState {
   hasGeminiKey: boolean;
   hasSkillProfile: boolean;
+  isMusicOn: boolean;
   setHasGeminiKey: (v: boolean) => void;
   setHasSkillProfile: (v: boolean) => void;
+  setIsMusicOn: (v: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -21,8 +23,10 @@ interface SettingsState {
 const SettingsContext = createContext<SettingsState>({
   hasGeminiKey: false,
   hasSkillProfile: false,
+  isMusicOn: false,
   setHasGeminiKey: () => {},
   setHasSkillProfile: () => {},
+  setIsMusicOn: () => {},
 });
 
 // ---------------------------------------------------------------------------
@@ -32,6 +36,7 @@ const SettingsContext = createContext<SettingsState>({
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [hasGeminiKey, setHasGeminiKey] = useState(false);
   const [hasSkillProfile, setHasSkillProfile] = useState(false);
+  const [isMusicOn, setIsMusicOn] = useState(true);
 
   useEffect(() => {
     setHasGeminiKey(storage.hasApiKey());
@@ -40,7 +45,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SettingsContext.Provider
-      value={{ hasGeminiKey, hasSkillProfile, setHasGeminiKey, setHasSkillProfile }}
+      value={{ hasGeminiKey, hasSkillProfile, isMusicOn, setHasGeminiKey, setHasSkillProfile, setIsMusicOn }}
     >
       {children}
     </SettingsContext.Provider>

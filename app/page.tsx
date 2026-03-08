@@ -35,11 +35,35 @@ interface Windows {
 }
 
 export default function Home() {
-  const { setHasGeminiKey } = useSettings();
+  const { setHasGeminiKey, isMusicOn } = useSettings();
   const [state, setState] = useState<AppState>({ phase: "loading", needsSetup: false });
   const [windows, setWindows] = useState<Windows>({ mission: false, progress: false, report: false });
   const [showFireworks, setShowFireworks] = useState(false);
+  const [showMusicNudge, setShowMusicNudge] = useState(false);
   const initialised = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Init audio element once
+  useEffect(() => {
+    audioRef.current = new Audio("/activesong.mp3");
+    audioRef.current.loop = true;
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  // Play / pause based on phase + user music toggle
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (state.phase === "processing" && isMusicOn) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  }, [state.phase, isMusicOn]);
 
   useEffect(() => {
     if (initialised.current) return;
@@ -83,6 +107,13 @@ export default function Home() {
   function handleIgnite(url: string, mode: AnalysisMode, focus: string, skillProfile?: SkillProfile) {
     setState((prev) => ({ ...prev, phase: "processing", progress: undefined, progressError: undefined }));
     setWindows({ mission: false, progress: true, report: false });
+
+    // Show music nudge for 5s (only if music is off)
+    if (!isMusicOn) {
+      setShowMusicNudge(true);
+      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = setTimeout(() => setShowMusicNudge(false), 5000);
+    }
 
     runAgent({
       url,
@@ -142,7 +173,7 @@ export default function Home() {
   return (
     <>
       <Toaster />
-      <SettingsFab />
+      <SettingsFab showMusicNudge={showMusicNudge} />
 
       {/* Watermark — always visible, animates only while agent is working */}
       <div
