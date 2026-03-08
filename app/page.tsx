@@ -11,6 +11,7 @@ import { OutputView } from "@/app/components/OutputView";
 import { SettingsFab } from "@/app/components/SettingsFab";
 import { Toaster } from "@/app/components/Toaster";
 import { FireworksOverlay } from "@/app/components/FireworksOverlay";
+import { PixelParadeBackground } from "@/app/components/PixelParadeBackground";
 import { Dock } from "@/app/components/Dock";
 import { useSettings } from "@/app/lib/settings-store";
 import type { AnalysisMode, AgentResult, AgentProgress, SkillProfile } from "@/app/lib/types";
@@ -195,6 +196,7 @@ export default function Home() {
         </span>
       </div>
 
+      <PixelParadeBackground processing={state.phase === "processing"} />
       {showFireworks && <FireworksOverlay active />}
 
       {windows.mission && (
