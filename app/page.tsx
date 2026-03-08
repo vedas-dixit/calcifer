@@ -5,6 +5,7 @@ import { storage } from "@/app/lib/storage";
 import { runAgent } from "@/app/lib/agent";
 
 import { ApiKeyModal } from "@/app/components/ApiKeyModal";
+import { DisclaimerModal } from "@/app/components/DisclaimerModal";
 import { MainApp } from "@/app/components/MainApp";
 import { ProgressView } from "@/app/components/ProgressView";
 import { OutputView } from "@/app/components/OutputView";
@@ -40,6 +41,7 @@ export default function Home() {
   const [windows, setWindows] = useState<Windows>({ mission: false, progress: false, report: false });
   const [showFireworks, setShowFireworks] = useState(false);
   const [showMusicNudge, setShowMusicNudge] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   const initialised = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,6 +72,10 @@ export default function Home() {
     initialised.current = true;
 
     const hasKey = storage.hasApiKey();
+
+    if (!localStorage.getItem("CALCIFER_DISCLAIMER_AGREED")) {
+      setShowDisclaimer(true);
+    }
 
     try {
       const saved = localStorage.getItem(LAST_RESULT_KEY);
@@ -172,6 +178,14 @@ export default function Home() {
 
   return (
     <>
+      {showDisclaimer && (
+        <DisclaimerModal
+          onAgree={() => {
+            localStorage.setItem("CALCIFER_DISCLAIMER_AGREED", "1");
+            setShowDisclaimer(false);
+          }}
+        />
+      )}
       <Toaster />
       <SettingsFab showMusicNudge={showMusicNudge} />
 
