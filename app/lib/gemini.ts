@@ -14,7 +14,11 @@ export interface AgentLoopConfig {
   initialMessage: string;
   apiKey: string;
   model?: string;
-  fetchFiles: (paths: string[]) => Promise<Array<{ path: string; content: string }>>;
+  fetchFiles: (paths: string[]) => Promise<{
+    files: Array<{ path: string; content: string }>;
+    notInTree: string[];
+    fetchFailed: string[];
+  }>;
   // Called each time the agent uses read_files — use this to update UI progress
   onToolCall: (reason: string, paths: string[], round: number) => void;
 }
@@ -84,7 +88,7 @@ export async function runAgentLoop(config: AgentLoopConfig): Promise<string> {
     if (!calls || calls.length === 0) {
       const text = response.response.text();
       if (text.trim()) return text;
-      throw new Error("EMBERCORE went silent — no report produced. Please try again.");
+      throw new Error("CALCIFER went silent — no report produced. Please try again.");
     }
 
     // Process read_files calls (model may batch multiple in one turn)
@@ -113,7 +117,7 @@ export async function runAgentLoop(config: AgentLoopConfig): Promise<string> {
       const limited = paths.slice(0, Math.min(15, remaining));
       onToolCall(reason, limited, round + 1);
 
-      const files = await fetchFiles(limited);
+      const { files, notInTree, fetchFailed } = await fetchFiles(limited);
       totalFilesRead += files.length;
 
       const fileBlocks = files
@@ -127,10 +131,24 @@ export async function runAgentLoop(config: AgentLoopConfig): Promise<string> {
         })
         .join("\n\n");
 
+      const warnings: string[] = [];
+      if (notInTree.length > 0) {
+        warnings.push(
+          `[SYSTEM: These paths do NOT exist in the repository tree — do not request them again: ${notInTree.join(", ")}]`
+        );
+      }
+      if (fetchFailed.length > 0) {
+        warnings.push(
+          `[SYSTEM: These paths exist in the tree but could not be fetched (binary or empty): ${fetchFailed.join(", ")}]`
+        );
+      }
+
       let result =
         files.length > 0
           ? `Read ${files.length} file(s):\n\n${fileBlocks}`
-          : "None of those paths could be read. Check the file tree and try different paths.";
+          : "No files could be read.";
+
+      if (warnings.length > 0) result += "\n\n" + warnings.join("\n");
 
       // Nudge the agent to wrap up when approaching limits
       if (totalFilesRead >= MAX_FILES_TOTAL * 0.8) {
@@ -160,5 +178,5 @@ export async function runAgentLoop(config: AgentLoopConfig): Promise<string> {
     response = await chat.sendMessage(responseParts);
   }
 
-  throw new Error("EMBERCORE exhausted all rounds without a report. Try a more focused analysis.");
+  throw new Error("CALCIFER exhausted all rounds without a report. Try a more focused analysis.");
 }

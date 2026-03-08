@@ -99,9 +99,8 @@ export function FireworksOverlay({ active }: { active: boolean }) {
     function frame() {
       if (!canvas || !ctx) return;
 
-      // Soft fade instead of hard clear — leaves a subtle comet trail
-      ctx.fillStyle = "rgba(26, 24, 25, 0.28)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear to transparent — fireworks sit over the app background
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // ── Rockets ──────────────────────────────────────────────────────
       rockets.current = rockets.current.filter((r) => {

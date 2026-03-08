@@ -8,6 +8,7 @@ import { toast } from "@/app/lib/toast";
 
 interface ApiKeyModalProps {
   onKeySet: () => void;
+  onMinimize?: () => void;
 }
 
 // Quick validation — try listing Gemini models with the provided key
@@ -22,7 +23,7 @@ async function validateGeminiKey(key: string): Promise<boolean> {
   }
 }
 
-export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
+export function ApiKeyModal({ onKeySet, onMinimize }: ApiKeyModalProps) {
   const [geminiKey, setGeminiKey] = useState("");
   const [githubKey, setGithubKey] = useState("");
   const [phase, setPhase] = useState<"idle" | "validating" | "error">("idle");
@@ -78,7 +79,7 @@ export function ApiKeyModal({ onKeySet }: ApiKeyModalProps) {
   const isValidating = phase === "validating";
 
   return (
-    <DraggableWindow title="MISSION_CONFIG.EXE" variant="fire" defaultWidth={460}>
+    <DraggableWindow title="MISSION_CONFIG.EXE" variant="fire" defaultWidth={460} onClose={onMinimize} onMinimize={onMinimize}>
       <div
         style={{
           padding: "32px 28px 28px",

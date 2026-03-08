@@ -7,6 +7,8 @@ import type { AnalysisMode } from "@/app/lib/types";
 
 interface MainAppProps {
   onIgnite: (url: string, mode: AnalysisMode, focus: string) => void;
+  onClose?: () => void;
+  onMinimize?: () => void;
 }
 
 interface ModeOption {
@@ -37,7 +39,7 @@ const MODES: ModeOption[] = [
   },
 ];
 
-export function MainApp({ onIgnite }: MainAppProps) {
+export function MainApp({ onIgnite, onClose, onMinimize }: MainAppProps) {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<AnalysisMode>("documentation");
   const [focus, setFocus] = useState("");
@@ -62,6 +64,8 @@ export function MainApp({ onIgnite }: MainAppProps) {
       title="MISSION_CONFIG.EXE"
       defaultWidth={560}
       titleAlign="right"
+      onClose={onClose}
+      onMinimize={onMinimize}
     >
       <div style={{ padding: "24px" }}>
         {/* Header */}
@@ -88,7 +92,7 @@ export function MainApp({ onIgnite }: MainAppProps) {
               margin: "4px 0 6px",
             }}
           >
-            EMBERCORE
+            CALCIFER
           </h1>
 
           <p

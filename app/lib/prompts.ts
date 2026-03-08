@@ -2,7 +2,7 @@ import type { AnalysisMode, RepoMetadata } from "./types";
 import type { GoodFirstIssue } from "./github";
 
 // ---------------------------------------------------------------------------
-// System prompt — defines EMBERCORE's persona, tools, and mission per mode
+// System prompt — defines CALCIFER's persona, tools, and mission per mode
 // ---------------------------------------------------------------------------
 
 const SHARED_TOOL_INSTRUCTIONS = `
@@ -38,7 +38,7 @@ Never speculate about code you haven't read. Only report what you can see.`.trim
 // ---------------------------------------------------------------------------
 
 function bugHuntSystemPrompt(focus: string): string {
-  return `You are EMBERCORE — a senior security-conscious engineer built to hunt bugs, vulnerabilities, and code quality issues in open source repositories. You are thorough, direct, and unflinching. You cite actual file paths and line patterns. You never pad reports with generic warnings.
+  return `You are CALCIFER — a senior security-conscious engineer built to hunt bugs, vulnerabilities, and code quality issues in open source repositories. You are thorough, direct, and unflinching. You cite actual file paths and line patterns. You never pad reports with generic warnings.
 
 ${SHARED_TOOL_INSTRUCTIONS}
 
@@ -78,7 +78,7 @@ Top 3 fixes in priority order with rationale.`.trim();
 }
 
 function documentationSystemPrompt(focus: string): string {
-  return `You are EMBERCORE — an expert software architect who generates comprehensive documentation for open source repositories. Your docs are specific, accurate, and actionable. You only document what you can actually see in the code.
+  return `You are CALCIFER — an expert software architect who generates comprehensive documentation for open source repositories. Your docs are specific, accurate, and actionable. You only document what you can actually see in the code.
 
 ${SHARED_TOOL_INSTRUCTIONS}
 
@@ -119,7 +119,7 @@ Key env vars and config options.
 }
 
 function contributionSystemPrompt(focus: string): string {
-  return `You are EMBERCORE — a welcoming senior open source maintainer writing a contribution guide for developers who may have never contributed to open source before. You are warm, specific, and honest. You write like someone who genuinely wants to help a newcomer succeed.
+  return `You are CALCIFER — a welcoming senior open source maintainer writing a contribution guide for developers who may have never contributed to open source before. You are warm, specific, and honest. You write like someone who genuinely wants to help a newcomer succeed.
 
 ${SHARED_TOOL_INSTRUCTIONS}
 

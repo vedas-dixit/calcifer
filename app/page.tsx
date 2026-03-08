@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { storage } from "@/app/lib/storage";
 import { runAgent } from "@/app/lib/agent";
+
 import { ApiKeyModal } from "@/app/components/ApiKeyModal";
 import { MainApp } from "@/app/components/MainApp";
 import { ProgressView } from "@/app/components/ProgressView";
@@ -10,37 +11,73 @@ import { OutputView } from "@/app/components/OutputView";
 import { SettingsFab } from "@/app/components/SettingsFab";
 import { Toaster } from "@/app/components/Toaster";
 import { FireworksOverlay } from "@/app/components/FireworksOverlay";
-import type { AppPhase, AnalysisMode, AgentResult, AgentProgress } from "@/app/lib/types";
+import { Dock } from "@/app/components/Dock";
+import type { AnalysisMode, AgentResult, AgentProgress } from "@/app/lib/types";
+
+const LAST_RESULT_KEY = "CALCIFER_LAST_RESULT";
+
+type Phase = "loading" | "idle" | "processing";
 
 interface AppState {
-  phase: AppPhase;
+  phase: Phase;
+  needsSetup: boolean;
   progress?: AgentProgress;
   result?: AgentResult;
-  error?: string;
+  progressError?: string;
+}
+
+interface Windows {
+  mission: boolean;
+  progress: boolean;
+  report: boolean;
 }
 
 export default function Home() {
-  // "loading" avoids SSR / client hydration mismatch with localStorage
-  const [state, setState] = useState<AppState>({ phase: "loading" });
-
-  // Read localStorage only after mount (client-only)
+  const [state, setState] = useState<AppState>({ phase: "loading", needsSetup: false });
+  const [windows, setWindows] = useState<Windows>({ mission: false, progress: false, report: false });
   const initialised = useRef(false);
+
   useEffect(() => {
     if (initialised.current) return;
     initialised.current = true;
-    const phase = storage.hasApiKey() ? "main" : "setup";
-    // One-time mount read from localStorage (browser-only API).
-    // This is intentional — it cannot be expressed as a subscription.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((prev) => ({ ...prev, phase }));
+
+    const hasKey = storage.hasApiKey();
+
+    try {
+      const saved = localStorage.getItem(LAST_RESULT_KEY);
+      if (saved) {
+        const result = JSON.parse(saved) as AgentResult;
+        setState({ phase: "idle", needsSetup: !hasKey, result });
+        return;
+      }
+    } catch {
+      // ignore bad JSON
+    }
+
+    setState({ phase: "idle", needsSetup: !hasKey });
   }, []);
 
+  useEffect(() => {
+    if (state.result) {
+      try {
+        localStorage.setItem(LAST_RESULT_KEY, JSON.stringify(state.result));
+      } catch {
+        // ignore
+      }
+    }
+  }, [state.result]);
+
+  function handleCalciferClick() {
+    setWindows((prev) => ({ ...prev, mission: !prev.mission }));
+  }
+
   function handleKeySet() {
-    setState((prev) => ({ ...prev, phase: "main" }));
+    setState((prev) => ({ ...prev, needsSetup: false }));
   }
 
   function handleIgnite(url: string, mode: AnalysisMode, focus: string) {
-    setState({ phase: "processing", progress: undefined });
+    setState((prev) => ({ ...prev, phase: "processing", progress: undefined, progressError: undefined }));
+    setWindows({ mission: false, progress: true, report: false });
 
     runAgent({
       url,
@@ -51,22 +88,21 @@ export default function Home() {
       },
     })
       .then((result) => {
-        setState({ phase: "output", result });
+        setState((prev) => ({ ...prev, phase: "idle", result }));
+        setWindows({ mission: false, progress: false, report: true });
       })
       .catch((err: unknown) => {
         const message =
-          err instanceof Error
-            ? err.message
-            : "Something went wrong. The fire went out.";
-        setState({ phase: "error", error: message });
+          err instanceof Error ? err.message : "Something went wrong. The fire went out.";
+        setState((prev) => ({ ...prev, phase: "idle", progressError: message }));
+        setWindows((prev) => ({ ...prev, progress: true }));
       });
   }
 
-  function handleReset() {
-    setState({ phase: "main" });
+  function handleNewMission() {
+    setWindows((prev) => ({ ...prev, report: false, mission: true }));
   }
 
-  /* ── Loading splash ── */
   if (state.phase === "loading") {
     return (
       <div
@@ -93,55 +129,114 @@ export default function Home() {
     );
   }
 
+  const hasResult = !!state.result;
+  const progressAvailable = state.phase === "processing" || !!state.progress;
+
   return (
     <>
       <Toaster />
-      {state.phase !== "setup" && <SettingsFab />}
+      <SettingsFab />
 
-      {state.phase === "setup" && <ApiKeyModal onKeySet={handleKeySet} />}
-
-      {state.phase === "main" && <MainApp onIgnite={handleIgnite} />}
-
-      {state.phase === "processing" && (
-        <>
-          <FireworksOverlay active />
-          <ProgressView live={state.progress} />
-        </>
-      )}
-
-      {state.phase === "output" && state.result && (
-        <OutputView result={state.result} onReset={handleReset} />
-      )}
-
-      {state.phase === "error" && (
-        <div
+      {/* Watermark — always visible, animates only while agent is working */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+          userSelect: "none",
+          zIndex: 0,
+        }}
+      >
+        <span
           style={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "16px",
-            padding: "24px",
-            textAlign: "center",
+            fontFamily: "var(--font-mono)",
+            fontSize: "clamp(3rem, 10vw, 7rem)",
+            fontWeight: 700,
+            letterSpacing: "0.35em",
+            lineHeight: 1,
+            display: "inline-flex",
           }}
         >
-          <p
-            style={{
-              color: "var(--color-ember-coral)",
-              fontSize: "13px",
-              maxWidth: "440px",
-              lineHeight: "1.7",
-            }}
-          >
-            {state.error ?? "Something went wrong. The fire went out."}
-          </p>
-          <button className="btn-ghost" onClick={handleReset}>
-            ← Try again
-          </button>
-        </div>
+          {"CALCIFER".split("").map((char, i) =>
+            state.phase === "processing" ? (
+              <span
+                key={i}
+                style={{
+                  animation: `char-ignite 4s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                  animationFillMode: "both",
+                  display: "inline-block",
+                }}
+              >
+                {char}
+              </span>
+            ) : (
+              <span
+                key={i}
+                style={{
+                  display: "inline-block",
+                  opacity: 0.035,
+                  color: "var(--color-ember-amber)",
+                }}
+              >
+                {char}
+              </span>
+            )
+          )}
+        </span>
+      </div>
+
+      {hasResult && windows.report && <FireworksOverlay active />}
+
+      {windows.mission && (
+        state.needsSetup ? (
+          <ApiKeyModal
+            onKeySet={handleKeySet}
+            onMinimize={() => setWindows((prev) => ({ ...prev, mission: false }))}
+          />
+        ) : (
+          <MainApp
+            onIgnite={handleIgnite}
+            onClose={() => setWindows((prev) => ({ ...prev, mission: false }))}
+            onMinimize={() => setWindows((prev) => ({ ...prev, mission: false }))}
+          />
+        )
       )}
-      
+
+      {windows.progress && (
+        <ProgressView
+          live={state.progress}
+          error={state.progressError}
+          onClose={() => setWindows((prev) => ({ ...prev, progress: false }))}
+          onMinimize={() => setWindows((prev) => ({ ...prev, progress: false }))}
+        />
+      )}
+
+      {hasResult && windows.report && state.result && (
+        <OutputView
+          result={state.result}
+          onReset={handleNewMission}
+          onClose={() => setWindows((prev) => ({ ...prev, report: false }))}
+          onMinimize={() => setWindows((prev) => ({ ...prev, report: false }))}
+        />
+      )}
+
+      <Dock
+        phase={state.phase}
+        hasResult={hasResult}
+        progressAvailable={progressAvailable}
+        windows={windows}
+        onCalciferClick={handleCalciferClick}
+        onProgressClick={() =>
+          progressAvailable && setWindows((prev) => ({ ...prev, progress: !prev.progress }))
+        }
+        onReportClick={() =>
+          hasResult && setWindows((prev) => ({ ...prev, report: !prev.report }))
+        }
+      />
     </>
   );
 }

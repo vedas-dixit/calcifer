@@ -20,6 +20,8 @@ export interface DraggableWindowProps {
   defaultWidth?: number;
   /** Called when the red (close) traffic-light button is pressed. */
   onClose?: () => void;
+  /** Called when the yellow (minimize) traffic-light button is pressed. If provided, replaces internal minimize. */
+  onMinimize?: () => void;
   className?: string;
   style?: CSSProperties;
   /** Where to render the title text. Default "center". "right" puts it in the right slot. */
@@ -35,6 +37,7 @@ export function DraggableWindow({
   headerRight,
   defaultWidth = 560,
   onClose,
+  onMinimize,
   className = "",
   style,
   titleAlign = "center",
@@ -186,8 +189,8 @@ export function DraggableWindow({
             <button className="tl-btn tl-red" onClick={onClose} aria-label="Close" />
             <button
               className="tl-btn tl-yellow"
-              onClick={handleMinimize}
-              aria-label={minimized ? "Restore" : "Minimize"}
+              onClick={onMinimize ?? handleMinimize}
+              aria-label="Minimize"
             />
             <button className="tl-btn tl-green" aria-label="Fullscreen" />
           </div>

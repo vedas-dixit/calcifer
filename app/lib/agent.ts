@@ -90,7 +90,7 @@ export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
 
   try {
     // ── Boot ──
-    tracker.push("boot", "> EMBERCORE.EXE — warming up", "→ Locking onto target...", 5);
+    tracker.push("boot", "> CALCIFER.EXE — warming up", "→ Locking onto target...", 5);
 
     // ── Parse URL ──
     tracker.push("parse", "> Parsing repository coordinates...", `→ Target: ${url}`, 10);
@@ -151,13 +151,16 @@ export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
     // ── Agent loop — Gemini with function calling ──
     tracker.push(
       "agent",
-      "> EMBERCORE is on the move...",
+      "> CALCIFER is on the move...",
       "→ Studying the codebase map...",
       50
     );
 
     // Each round of file fetching becomes a new visible step
     // Percent: 50 → 85 spread across up to 7 rounds (~5% per round)
+    // Build a fast lookup set of all known blob paths
+    const knownPaths = new Set(blobs.map((b) => b.path));
+
     const output = await runAgentLoop({
       systemPrompt: buildSystemPrompt(mode, focus),
       model: storage.getModel(),
@@ -173,11 +176,23 @@ export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
 
       fetchFiles: async (paths) => {
         const results: Array<{ path: string; content: string }> = [];
+        const notInTree: string[] = [];
+        const fetchFailed: string[] = [];
+
         for (const path of paths) {
+          if (!knownPaths.has(path)) {
+            notInTree.push(path);
+            continue;
+          }
           const content = await fetchRawContent(owner, repo, branch, path);
-          if (content !== null) results.push({ path, content });
+          if (content !== null) {
+            results.push({ path, content });
+          } else {
+            fetchFailed.push(path);
+          }
         }
-        return results;
+
+        return { files: results, notInTree, fetchFailed };
       },
 
       onToolCall: (reason, paths, round) => {

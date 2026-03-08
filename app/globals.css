@@ -90,6 +90,32 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes dock-item-pulse {
+  0%, 100% { border-color: rgba(244,174,46,0.12); box-shadow: none; }
+  50%       { border-color: rgba(244,174,46,0.40); box-shadow: 0 0 12px rgba(244,174,46,0.18); }
+}
+
+@keyframes char-ignite {
+  0%, 6% {
+    opacity: 0.025;
+    text-shadow: none;
+    color: var(--color-ember-amber);
+  }
+  22% {
+    opacity: 0.22;
+    color: var(--color-ember-orange);
+    text-shadow:
+      0 0 14px rgba(252,138,43,0.70),
+      0 0 40px rgba(249,83,64,0.35),
+      0 0 80px rgba(244,174,46,0.15);
+  }
+  42%, 100% {
+    opacity: 0.025;
+    text-shadow: none;
+    color: var(--color-ember-amber);
+  }
+}
+
 
 /* ── Animation helpers ── */
 .animate-flicker  { animation: flicker    4s  ease-in-out infinite; }

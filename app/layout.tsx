@@ -11,7 +11,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Embercore — Feed me a repo. I'll light the way.",
+  title: "Calcifer — Feed me a repo. I'll light the way.",
   description:
     "AI-powered repository analysis. Paste a GitHub URL and get architecture overviews, contribution guides, or a bug hunt — powered by your Gemini API key.",
   icons: { icon: "./favicon.ico" },
