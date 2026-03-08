@@ -37,6 +37,7 @@ export default function Home() {
   const { setHasGeminiKey } = useSettings();
   const [state, setState] = useState<AppState>({ phase: "loading", needsSetup: false });
   const [windows, setWindows] = useState<Windows>({ mission: false, progress: false, report: false });
+  const [showFireworks, setShowFireworks] = useState(false);
   const initialised = useRef(false);
 
   useEffect(() => {
@@ -94,6 +95,7 @@ export default function Home() {
       .then((result) => {
         setState((prev) => ({ ...prev, phase: "idle", result }));
         setWindows({ mission: false, progress: false, report: true });
+        setShowFireworks(true);
       })
       .catch((err: unknown) => {
         const message =
@@ -193,7 +195,7 @@ export default function Home() {
         </span>
       </div>
 
-      {hasResult && windows.report && <FireworksOverlay active />}
+      {showFireworks && <FireworksOverlay active />}
 
       {windows.mission && (
         state.needsSetup ? (
@@ -223,8 +225,8 @@ export default function Home() {
         <OutputView
           result={state.result}
           onReset={handleNewMission}
-          onClose={() => setWindows((prev) => ({ ...prev, report: false }))}
-          onMinimize={() => setWindows((prev) => ({ ...prev, report: false }))}
+          onClose={() => { setWindows((prev) => ({ ...prev, report: false })); setShowFireworks(false); }}
+          onMinimize={() => { setWindows((prev) => ({ ...prev, report: false })); setShowFireworks(false); }}
         />
       )}
 
@@ -237,9 +239,12 @@ export default function Home() {
         onProgressClick={() =>
           progressAvailable && setWindows((prev) => ({ ...prev, progress: !prev.progress }))
         }
-        onReportClick={() =>
-          hasResult && setWindows((prev) => ({ ...prev, report: !prev.report }))
-        }
+        onReportClick={() => {
+          if (hasResult) {
+            setShowFireworks(false);
+            setWindows((prev) => ({ ...prev, report: !prev.report }));
+          }
+        }}
       />
     </>
   );
