@@ -113,7 +113,12 @@ export function DisclaimerModal({ onAgree }: DisclaimerModalProps) {
                 <span style={{ color: "var(--color-ember-amber)" }}>
                   only in your browser&apos;s localStorage
                 </span>
-                . No backend, no server, no one else ever sees them.
+                . No backend, no server, no one else ever sees them. If you&apos;re
+                still not sure, just open this in a{" "}
+                <span style={{ color: "var(--color-ember-amber)" }}>
+                  private / incognito tab
+                </span>{" "}
+                — keys won&apos;t persist after you close it.
               </p>
 
               <p>
